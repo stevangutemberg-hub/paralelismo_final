@@ -22,6 +22,7 @@ O dataset é composto por registros contendo:
 - **latitude / longitude** → localização geográfica  
 - **payment_method** → método de pagamento  
 
+-- **https://www.kaggle.com/datasets/yaminh/mta-subway-hourly-ridership-2022-to-2024/data?utm_source=chatgpt.com*
 ---
 
 ## 🎯 Tema do Projeto
