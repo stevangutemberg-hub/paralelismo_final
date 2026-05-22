@@ -40,7 +40,6 @@ O objetivo deste projeto é analisar grandes volumes de dados de mobilidade urba
 - Processar dados massivos de fluxo de passageiros  
 - Detectar padrões de uso ao longo do tempo  
 - Identificar estações com maior risco de superlotação  
-- Prever congestionamentos futuros com base em dados históricos  
 - Detectar gargalos operacionais na rede metroviária  
 
 ---
