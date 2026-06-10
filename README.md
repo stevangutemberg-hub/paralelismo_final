@@ -208,15 +208,15 @@ Execução com:
 
 ### ⏱️ Tempo de Execução
 
-![Tempo](graficorafa/tempo.png)
+![Tempo](tempo.png)
 
 ### 🚀 Speedup
 
-![Speedup](graficorafa/speedup.png)
+![Speedup](speedup.png)
 
 ### ⚡ Eficiência
 
-![Eficiência](graficorafa/eficiência.png)
+![Eficiência](eficiencia.png)
 
 ---
 
