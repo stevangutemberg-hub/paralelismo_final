@@ -1,0 +1,159 @@
+
+======================================
+RESULTADOS DA ANÁLISE
+======================================
+
+--------------------------------------
+TOP 10 ESTAÇÕES MAIS MOVIMENTADAS
+--------------------------------------
+Times Sq-42 St (N,Q,R,W,S,1,2,3,7)/42 St (A,C,E)      84480828
+Grand Central-42 St (S,4,5,6,7)                       59456033
+34 St-Herald Sq (B,D,F,M,N,Q,R,W)                     46907575
+14 St-Union Sq (L,N,Q,R,W,4,5,6)                      42161109
+Fulton St (A,C,J,Z,2,3,4,5)                           35158520
+34 St-Penn Station (A,C,E)                            33972338
+59 St-Columbus Circle (A,B,C,D,1)                     31489614
+34 St-Penn Station (1,2,3)                            30595789
+74-Broadway (7)/Jackson Hts-Roosevelt Av (E,F,M,R)    27966198
+Flushing-Main St (7)                                  27446956
+dtype: int64
+
+--------------------------------------
+HORÁRIOS MAIS MOVIMENTADOS
+--------------------------------------
+17    216732188
+16    188419876
+8     184222952
+18    169894629
+15    166336093
+7     152379532
+14    137990419
+9     127616202
+13    117243769
+19    114133640
+dtype: int64
+
+--------------------------------------
+POSSÍVEIS ATRASOS DETECTADOS
+--------------------------------------
+                                     station_complex  ridership
+2                                      High St (A,C)         82
+12             81 St-Museum of Natural History (C,B)        218
+31                                      135 St (2,3)        131
+37                                     Hoyt St (2,3)        166
+54                                  145 St (A,C,B,D)         82
+1                                      Kings Hwy (F)         69
+29                                    Utica Av (A,C)        149
+44                          Lexington Av/63 St (F,Q)        154
+74                                         23 St (1)        247
+90                                 Sterling St (2,5)         77
+9                    Grand Central-42 St (S,4,5,6,7)        234
+17                            34 St-Hudson Yards (7)         93
+23                Lexington Av (N,R,W)/59 St (4,5,6)        241
+31                        Jay St-MetroTech (A,C,F,R)         84
+35  Times Sq-42 St (N,Q,R,W,S,1,2,3,7)/42 St (A,C,E)         97
+10                                     72 St (1,2,3)        347
+11                                   Nostrand Av (3)        121
+19                                     96 St (1,2,3)        249
+25                                61 St-Woodside (7)        177
+30                                 Junction Blvd (7)        193
+
+--------------------------------------
+POSSÍVEIS RISCOS / SUPERLOTAÇÃO
+--------------------------------------
+                           station_complex  ridership
+12   81 St-Museum of Natural History (C,B)        218
+31                            135 St (2,3)        131
+37                           Hoyt St (2,3)        166
+61                       WTC Cortlandt (1)        184
+71                     Nevins St (2,3,4,5)        175
+29                          Utica Av (A,C)        149
+44                Lexington Av/63 St (F,Q)        154
+74                               23 St (1)        247
+174                 Grand Av-Newtown (M,R)         98
+181                        Parkchester (6)        147
+9          Grand Central-42 St (S,4,5,6,7)        234
+23      Lexington Av (N,R,W)/59 St (4,5,6)        241
+96                            116 St (2,3)        169
+100      59 St-Columbus Circle (A,B,C,D,1)       1265
+116        Grand Central-42 St (S,4,5,6,7)        273
+10                           72 St (1,2,3)        347
+19                           96 St (1,2,3)        249
+25                      61 St-Woodside (7)        177
+30                       Junction Blvd (7)        193
+32                                3 Av (L)        317
+
+--------------------------------------
+ESTAÇÃO MAIS MOVIMENTADA
+--------------------------------------
+Estação: Times Sq-42 St (N,Q,R,W,S,1,2,3,7)/42 St (A,C,E)
+Total de passageiros: 84480828
+
+======================================
+COMPARATIVO DE DESEMPENHO
+======================================
+Processos   Tempo (s)     Speedup   
+1 (serial)  136.61        1.00      
+2           111.78        1.22      
+4           79.55         1.72      
+8           93.08         1.47      
+12          93.95         1.45      
+
+Obs.: Speedup = Tempo(1 processo) / Tempo(N processos).
+
+Fim da execução.
+PS C:\Users\aluno\Documents\ativ_paralelismo4> & C:\Users\aluno\AppData\Local\Programs\Python\Python313\python.exe "c:/Users/aluno/Documents/ativ_paralelismo4/analise_paralela (1).py"
+Núcleos disponíveis: 12
+
+Executando com 1 processos...
+Tempo: 3.41 s
+
+Executando com 2 processos...
+Tempo: 1.72 s
+
+Executando com 4 processos...
+Tempo: 1.08 s
+
+Executando com 8 processos...
+Tempo: 0.75 s
+
+Executando com 12 processos...
+Tempo: 0.72 s
+
+===== SPEEDUP =====
+Processos   Tempo(s)    Speedup     
+1           3.41        1.00        
+2           1.72        1.98        
+4           1.08        3.14        
+8           0.75        4.55        
+12          0.72        4.76        
+PS C:\Users\aluno\Documents\ativ_paralelismo4> & C:\Users\aluno\AppData\Local\Programs\Python\Python313\python.exe "c:/Users/aluno/Documents/ativ_paralelismo4/analise_paralela (1).py"
+==================================================
+TESTE DE PARALELIZAÇÃO
+==================================================
+Núcleos lógicos detectados: 12
+
+Executando com 1 processos...
+Tempo: 33.09 segundos
+
+Executando com 2 processos...
+Tempo: 17.18 segundos
+
+Executando com 4 processos...
+Tempo: 10.27 segundos
+
+Executando com 8 processos...
+Tempo: 6.05 segundos
+
+Executando com 12 processos...
+Tempo: 4.95 segundos
+
+==================================================
+COMPARATIVO DE DESEMPENHO
+==================================================
+Processos   Tempo(s)    Speedup     
+1           33.09       1.00        
+2           17.18       1.93        
+4           10.27       3.22        
+8           6.05        5.47        
+12          4.95        6.69        
