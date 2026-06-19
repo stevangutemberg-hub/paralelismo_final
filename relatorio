@@ -157,3 +157,18 @@ Processos   Tempo(s)    Speedup
 4           10.27       3.22        
 8           6.05        5.47        
 12          4.95        6.69        
+
+
+O que isso mostra?
+2 processos: resultado excelente (quase ideal).
+4 processos: muito bom.
+8 processos: ainda há ganho significativo.
+12 processos: continua melhorando, mas já aparece o efeito da Lei de Amdahl e dos overheads do sistema.
+
+É normal o crescimento deixar de ser linear à medida que o número de processos aumenta.
+
+Em um relatório você pode escrever
+
+Observou-se ganho significativo de desempenho com o aumento do número de processos. O speedup alcançou 1,93 com 2 processos, 3,22 com 4 processos, 5,47 com 8 processos e 6,69 com 12 processos. Embora o speedup não tenha crescido linearmente, os resultados demonstram boa escalabilidade da solução paralela. A redução da eficiência para números maiores de processos é esperada devido ao overhead de criação e sincronização de processos, competição por recursos de hardware e à parcela serial do algoritmo (Lei de Amdahl).
+
+Se isso for para uma disciplina de Paralelismo ou Sistemas Distribuídos, esses números normalmente seriam considerados satisfatórios.
