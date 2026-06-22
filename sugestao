@@ -10,7 +10,7 @@ import multiprocessing as mp
 ARQUIVO = "mta_sbway.csv"
 
 # Benchmark
-LISTA_PROCESSOS = [1, 2, 4, 8]
+LISTA_PROCESSOS = [1, 2, 4, 8, 12]
 
 # Quanto menor o chunk, melhor o balanceamento
 CHUNKSIZE = 2000
