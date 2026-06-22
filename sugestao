@@ -13,7 +13,8 @@ ARQUIVO = "mta_sbway.csv"
 LISTA_PROCESSOS = [1, 2, 4, 8]
 
 # Quanto menor o chunk, melhor o balanceamento
-CHUNKSIZE = 5000
+CHUNKSIZE = 2000
+
 
 # Aumente para tornar o trabalho mais pesado
 INTENSIDADE = 1000
@@ -308,106 +309,109 @@ def exibir_resultados(
 # EXECUÇÃO PARALELA
 # ============================================
 
-def rodar_paralelo(chunks, n_processos):
+def rodar_benchmark(chunks, n_processos):
 
     print("\n" + "=" * 60)
-    print(f"EXECUTANDO COM {n_processos} PROCESSOS")
+    print(f"EXECUTANDO COM {n_processos} PROCESSO(S)")
     print("=" * 60)
 
     inicio = time.time()
 
-    with mp.Pool(processes=n_processos) as pool:
+    if n_processos == 1:
 
-        resultados = list(
-            pool.imap_unordered(
-                processar_chunk,
-                chunks,
-                chunksize=2
+        resultados = [
+            processar_chunk(chunk)
+            for chunk in chunks
+        ]
+
+    else:
+
+        with mp.Pool(processes=n_processos) as pool:
+
+            resultados = list(
+                pool.imap_unordered(
+                    processar_chunk,
+                    chunks,
+                    chunksize=2
+                )
             )
-        )
 
     tempo = time.time() - inicio
 
-    est, hor, atr, ris = combinar_resultados(
-        resultados
-    )
-
-    exibir_resultados(
-        est,
-        hor,
-        atr,
-        ris
-    )
-
     print(
-        f"\nTempo: {tempo:.2f} segundos"
+        f"Tempo com {n_processos} processo(s): "
+        f"{tempo:.2f} segundos"
     )
 
     return tempo
-
-
 # ============================================
 # MAIN
 # ============================================
 
 if __name__ == "__main__":
 
-    print("=" * 60)
-    print("ANÁLISE PARALELA - METRÔ DE NOVA YORK")
-    print("=" * 60)
+    print("=" * 70)
+    print("ANÁLISE PARALELA - SERIAL ATÉ 12 PROCESSOS")
+    print("=" * 70)
 
-    print(
-        f"CPUs disponíveis: {mp.cpu_count()}"
-    )
+    print(f"CPUs disponíveis: {mp.cpu_count()}")
 
     t0 = time.time()
 
     chunks = carregar_chunks()
 
     print(
-        f"Carga do CSV: {time.time()-t0:.2f}s"
+        f"\nCarga do CSV: "
+        f"{time.time() - t0:.2f}s"
     )
+
+    LISTA_PROCESSOS = [
+        1, 2, 4, 6, 8, 10, 12
+    ]
 
     tempos = []
 
     for n in LISTA_PROCESSOS:
 
-        tempo = rodar_paralelo(
+        tempo = rodar_benchmark(
             chunks,
             n
         )
 
         tempos.append((n, tempo))
 
-    tempo_base = tempos[0][1]
+    tempo_serial = tempos[0][1]
 
     print("\n")
-    print("=" * 60)
+    print("=" * 70)
     print("COMPARATIVO FINAL")
-    print("=" * 60)
+    print("=" * 70)
 
     print(
         f"{'Proc':<10}"
         f"{'Tempo(s)':<15}"
-        f"{'Speedup':<12}"
-        f"{'Eficiência':<12}"
+        f"{'Speedup':<15}"
+        f"{'Eficiência':<15}"
     )
 
-    print("-" * 60)
+    print("-" * 70)
 
     for proc, tempo in tempos:
 
-        speedup = tempo_base / tempo
+        speedup = tempo_serial / tempo
 
         eficiencia = (
             speedup / proc
         ) * 100
 
+        barra = "█" * int(speedup * 4)
+
         print(
             f"{proc:<10}"
             f"{tempo:<15.2f}"
-            f"{speedup:<12.2f}"
-            f"{eficiencia:<11.2f}%"
+            f"{speedup:<15.2f}"
+            f"{eficiencia:<14.2f}% "
+            f"{barra}"
         )
 
     melhor = min(
@@ -415,12 +419,21 @@ if __name__ == "__main__":
         key=lambda x: x[1]
     )
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
+    print("MELHOR RESULTADO")
+    print("=" * 70)
+
     print(
-        f"Melhor configuração: "
-        f"{melhor[0]} processos"
+        f"Processos: {melhor[0]}"
     )
+
     print(
         f"Tempo: {melhor[1]:.2f}s"
     )
-    print("=" * 60)
+
+    print(
+        f"Speedup: "
+        f"{tempo_serial / melhor[1]:.2f}x"
+    )
+
+    print("=" * 70)
