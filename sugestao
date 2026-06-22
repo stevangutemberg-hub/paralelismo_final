@@ -8,13 +8,15 @@ import multiprocessing as mp
 # ============================================
 
 ARQUIVO = "mta_sbway.csv"
-LISTA_PROCESSOS = [2, 4, 8, 12]
-CHUNKSIZE = 20000
 
-# Controla o peso do trabalho por chunk.
-# Aumente se quiser mais tempo total.
-# Diminua se estiver demorando demais.
-INTENSIDADE = 200  # iterações de CPU por chunk
+# Benchmark
+LISTA_PROCESSOS = [1, 2, 4, 8]
+
+# Quanto menor o chunk, melhor o balanceamento
+CHUNKSIZE = 5000
+
+# Aumente para tornar o trabalho mais pesado
+INTENSIDADE = 1000
 
 
 # ============================================
@@ -22,6 +24,7 @@ INTENSIDADE = 200  # iterações de CPU por chunk
 # ============================================
 
 def detectar_colunas(colunas):
+
     if "station" in colunas:
         col_estacao = "station"
     elif "station_complex" in colunas:
@@ -53,49 +56,53 @@ def detectar_colunas(colunas):
 
 
 # ============================================
-# TRABALHO PESADO DE CPU (controlado)
+# CARGA PESADA DE CPU
 # ============================================
 
 def cpu_intensivo(n_iter):
-    """
-    Carga pura de CPU proporcional a n_iter.
-    Não depende do tamanho do chunk.
-    """
-    x = np.random.rand(1000)
+
+    x = np.random.rand(10000)
+
     for _ in range(n_iter):
         x = np.fft.fft(x).real
         x = np.sort(x)
         x = x / (np.linalg.norm(x) + 1e-9)
+
     return x
 
 
 # ============================================
-# WORKER: PROCESSA UM CHUNK
+# PROCESSAMENTO DE UM CHUNK
 # ============================================
 
-def processar_chunk(args):
-    idx, chunk_dict, intensidade = args
-    chunk = pd.DataFrame(chunk_dict)
+def processar_chunk(chunk):
 
     chunk.columns = chunk.columns.str.strip().str.lower()
-    colunas = chunk.columns
 
-    col_estacao, col_pass, col_time = detectar_colunas(colunas)
+    col_estacao, col_pass, col_time = detectar_colunas(chunk.columns)
+
     if col_estacao is None:
         return None
 
     chunk = chunk.drop_duplicates()
-    chunk = chunk.dropna(subset=[col_estacao, col_pass])
-    chunk[col_pass] = pd.to_numeric(chunk[col_pass], errors="coerce")
+
+    chunk = chunk.dropna(
+        subset=[col_estacao, col_pass]
+    )
+
+    chunk[col_pass] = pd.to_numeric(
+        chunk[col_pass],
+        errors="coerce"
+    )
+
     chunk = chunk.dropna(subset=[col_pass])
 
     if chunk.empty:
         return None
 
-    # --- CARGA PESADA DE CPU ---
-    cpu_intensivo(intensidade)
+    # Simulação de carga pesada
+    cpu_intensivo(INTENSIDADE)
 
-    # Estações
     movimento_estacoes = (
         chunk.groupby(col_estacao)[col_pass]
         .sum()
@@ -103,161 +110,240 @@ def processar_chunk(args):
     )
 
     movimento_horarios = {}
-    possiveis_atrasos = []
-    possiveis_riscos = []
+    atrasos = []
+    riscos = []
 
     if col_time:
-        chunk[col_time] = pd.to_datetime(chunk[col_time], errors="coerce")
-        chunk = chunk.dropna(subset=[col_time])
-        chunk["hora"] = chunk[col_time].dt.hour
 
-        movimento_horarios = (
-            chunk.groupby("hora")[col_pass]
-            .sum()
-            .to_dict()
+        chunk[col_time] = pd.to_datetime(
+            chunk[col_time],
+            errors="coerce"
         )
 
-        media = chunk[col_pass].mean()
+        chunk = chunk.dropna(subset=[col_time])
 
-        atrasos = chunk[chunk[col_pass] > media * 2]
-        if len(atrasos) > 0:
-            possiveis_atrasos = (
-                atrasos[[col_estacao, col_pass]]
-                .head(5).to_dict("records")
+        if not chunk.empty:
+
+            chunk["hora"] = (
+                chunk[col_time]
+                .dt.hour
             )
 
-        riscos = chunk[chunk[col_pass] > media * 3]
-        if len(riscos) > 0:
-            possiveis_riscos = (
-                riscos[[col_estacao, col_pass]]
-                .head(5).to_dict("records")
+            movimento_horarios = (
+                chunk.groupby("hora")[col_pass]
+                .sum()
+                .to_dict()
             )
+
+            media = chunk[col_pass].mean()
+
+            possiveis_atrasos = chunk[
+                chunk[col_pass] > media * 2
+            ]
+
+            possiveis_riscos = chunk[
+                chunk[col_pass] > media * 3
+            ]
+
+            if not possiveis_atrasos.empty:
+                atrasos = (
+                    possiveis_atrasos[
+                        [col_estacao, col_pass]
+                    ]
+                    .head(5)
+                    .to_dict("records")
+                )
+
+            if not possiveis_riscos.empty:
+                riscos = (
+                    possiveis_riscos[
+                        [col_estacao, col_pass]
+                    ]
+                    .head(5)
+                    .to_dict("records")
+                )
 
     return {
         "estacoes": movimento_estacoes,
         "horarios": movimento_horarios,
-        "atrasos": possiveis_atrasos,
-        "riscos": possiveis_riscos,
-        "col_estacao": col_estacao,
-        "col_pass": col_pass,
+        "atrasos": atrasos,
+        "riscos": riscos
     }
 
 
 # ============================================
-# COMBINA RESULTADOS
+# COMBINAR RESULTADOS
 # ============================================
 
-def combinar_resultados(lista):
+def combinar_resultados(resultados):
+
     movimento_estacoes = {}
     movimento_horarios = {}
-    possiveis_atrasos = []
-    possiveis_riscos = []
-    col_estacao = col_pass = None
 
-    for res in lista:
-        if res is None:
+    atrasos = []
+    riscos = []
+
+    for r in resultados:
+
+        if r is None:
             continue
-        col_estacao = res.get("col_estacao", col_estacao)
-        col_pass = res.get("col_pass", col_pass)
 
-        for e, v in res["estacoes"].items():
-            movimento_estacoes[e] = movimento_estacoes.get(e, 0) + v
-        for h, v in res["horarios"].items():
-            movimento_horarios[h] = movimento_horarios.get(h, 0) + v
+        for k, v in r["estacoes"].items():
+            movimento_estacoes[k] = (
+                movimento_estacoes.get(k, 0) + v
+            )
 
-        possiveis_atrasos.extend(res["atrasos"])
-        possiveis_riscos.extend(res["riscos"])
+        for k, v in r["horarios"].items():
+            movimento_horarios[k] = (
+                movimento_horarios.get(k, 0) + v
+            )
+
+        atrasos.extend(r["atrasos"])
+        riscos.extend(r["riscos"])
 
     return (
-        movimento_estacoes, movimento_horarios,
-        possiveis_atrasos, possiveis_riscos,
-        col_estacao, col_pass,
+        movimento_estacoes,
+        movimento_horarios,
+        atrasos,
+        riscos
     )
 
 
 # ============================================
-# EXIBE RESULTADOS
-# ============================================
-
-def exibir_resultados(est, hor, atr, ris, col_e, col_p):
-    print("\n======================================")
-    print("TOP 10 ESTAÇÕES MAIS MOVIMENTADAS")
-    print("======================================")
-    top = pd.Series(est).sort_values(ascending=False).head(10)
-    print(top)
-
-    print("\n======================================")
-    print("HORÁRIOS MAIS MOVIMENTADOS")
-    print("======================================")
-    if hor:
-        print(pd.Series(hor).sort_values(ascending=False).head(10))
-    else:
-        print("Sem dados de horário.")
-
-    print("\n======================================")
-    print("POSSÍVEIS ATRASOS DETECTADOS")
-    print("======================================")
-    if atr:
-        print(pd.DataFrame(atr).head(20))
-    else:
-        print("Nenhum possível atraso detectado.")
-
-    print("\n======================================")
-    print("POSSÍVEIS RISCOS / SUPERLOTAÇÃO")
-    print("======================================")
-    if ris:
-        print(pd.DataFrame(ris).head(20))
-    else:
-        print("Nenhum possível risco detectado.")
-
-    print("\n======================================")
-    print("ESTAÇÃO MAIS MOVIMENTADA")
-    print("======================================")
-    print(f"Estação: {top.idxmax()}")
-    print(f"Total de passageiros: {top.max()}")
-
-
-# ============================================
-# CARREGA CHUNKS (uma vez só)
+# CARREGA CSV
 # ============================================
 
 def carregar_chunks():
-    print(f"\nCarregando '{ARQUIVO}'...")
+
+    print(f"\nCarregando {ARQUIVO}...")
+
     reader = pd.read_csv(
         ARQUIVO,
         chunksize=CHUNKSIZE,
         encoding="latin1",
         on_bad_lines="skip",
-        engine="python",
+        engine="python"
     )
+
     chunks = []
+
     for i, chunk in enumerate(reader):
-        chunks.append((i, chunk.to_dict("list"), INTENSIDADE))
-        print(f"  Chunk {i+1} ({len(chunk):,} linhas)", end="\r")
-    print(f"\n  Total: {len(chunks)} chunks carregados.")
+        chunks.append(chunk)
+
+        print(
+            f"Chunk {i+1} carregado",
+            end="\r"
+        )
+
+    print(
+        f"\nTotal de chunks: {len(chunks)}"
+    )
+
     return chunks
 
 
 # ============================================
-# RODA COM N PROCESSOS
+# EXIBIR RESULTADOS
+# ============================================
+
+def exibir_resultados(
+    estacoes,
+    horarios,
+    atrasos,
+    riscos
+):
+
+    print("\n" + "=" * 60)
+    print("TOP 10 ESTAÇÕES")
+    print("=" * 60)
+
+    top = (
+        pd.Series(estacoes)
+        .sort_values(ascending=False)
+        .head(10)
+    )
+
+    print(top)
+
+    print("\n" + "=" * 60)
+    print("HORÁRIOS MAIS MOVIMENTADOS")
+    print("=" * 60)
+
+    if horarios:
+        print(
+            pd.Series(horarios)
+            .sort_values(ascending=False)
+            .head(10)
+        )
+    else:
+        print("Sem dados.")
+
+    print("\n" + "=" * 60)
+    print("POSSÍVEIS ATRASOS")
+    print("=" * 60)
+
+    if atrasos:
+        print(pd.DataFrame(atrasos).head(20))
+    else:
+        print("Nenhum.")
+
+    print("\n" + "=" * 60)
+    print("POSSÍVEIS RISCOS")
+    print("=" * 60)
+
+    if riscos:
+        print(pd.DataFrame(riscos).head(20))
+    else:
+        print("Nenhum.")
+
+    print("\n" + "=" * 60)
+    print("ESTAÇÃO MAIS MOVIMENTADA")
+    print("=" * 60)
+
+    print(f"Estação: {top.idxmax()}")
+    print(f"Passageiros: {top.max():,.0f}")
+
+
+# ============================================
+# EXECUÇÃO PARALELA
 # ============================================
 
 def rodar_paralelo(chunks, n_processos):
-    print(f"\n{'='*55}")
-    print(f"  RODANDO COM {n_processos} PROCESSOS")
-    print(f"{'='*55}")
+
+    print("\n" + "=" * 60)
+    print(f"EXECUTANDO COM {n_processos} PROCESSOS")
+    print("=" * 60)
 
     inicio = time.time()
+
     with mp.Pool(processes=n_processos) as pool:
-        resultados = pool.map(processar_chunk, chunks)
-    fim = time.time()
-    tempo = fim - inicio
 
-    est, hor, atr, ris, col_e, col_p = combinar_resultados(resultados)
-    exibir_resultados(est, hor, atr, ris, col_e, col_p)
+        resultados = list(
+            pool.imap_unordered(
+                processar_chunk,
+                chunks,
+                chunksize=2
+            )
+        )
 
-    print(f"\n>>> TEMPO COM {n_processos} PROCESSOS: {tempo:.2f} segundos")
-    return n_processos, tempo
+    tempo = time.time() - inicio
+
+    est, hor, atr, ris = combinar_resultados(
+        resultados
+    )
+
+    exibir_resultados(
+        est,
+        hor,
+        atr,
+        ris
+    )
+
+    print(
+        f"\nTempo: {tempo:.2f} segundos"
+    )
+
+    return tempo
 
 
 # ============================================
@@ -266,35 +352,75 @@ def rodar_paralelo(chunks, n_processos):
 
 if __name__ == "__main__":
 
-    print("======================================")
-    print("  ANÁLISE PARALELA - METRÔ DE NY")
-    print("======================================")
-    print(f"CPUs disponíveis: {mp.cpu_count()}")
+    print("=" * 60)
+    print("ANÁLISE PARALELA - METRÔ DE NOVA YORK")
+    print("=" * 60)
+
+    print(
+        f"CPUs disponíveis: {mp.cpu_count()}"
+    )
 
     t0 = time.time()
+
     chunks = carregar_chunks()
-    print(f"Carga do CSV: {time.time() - t0:.2f}s")
+
+    print(
+        f"Carga do CSV: {time.time()-t0:.2f}s"
+    )
 
     tempos = []
-    for n in LISTA_PROCESSOS:
-        n_proc, tempo = rodar_paralelo(chunks, n)
-        tempos.append((n_proc, tempo))
 
-    # --- TABELA FINAL ---
+    for n in LISTA_PROCESSOS:
+
+        tempo = rodar_paralelo(
+            chunks,
+            n
+        )
+
+        tempos.append((n, tempo))
+
     tempo_base = tempos[0][1]
 
     print("\n")
-    print("=" * 55)
-    print("       COMPARATIVO DE DESEMPENHO FINAL")
-    print("=" * 55)
-    print(f"{'Processos':<12} {'Tempo (s)':<15} {'Speedup':<10} Barra")
-    print("-" * 55)
-    for n_proc, tempo in tempos:
-        speedup = tempo_base / tempo
-        barra = "█" * int(speedup * 6)
-        print(f"{n_proc:<12} {tempo:<15.2f} {speedup:<10.2f} {barra}")
+    print("=" * 60)
+    print("COMPARATIVO FINAL")
+    print("=" * 60)
 
-    print("=" * 55)
-    melhor = min(tempos, key=lambda x: x[1])
-    print(f"\n>>> Melhor: {melhor[0]} processos — {melhor[1]:.2f}s")
-    print(f"    Ganho total: {tempo_base / melhor[1]:.2f}x vs 2 processos")
+    print(
+        f"{'Proc':<10}"
+        f"{'Tempo(s)':<15}"
+        f"{'Speedup':<12}"
+        f"{'Eficiência':<12}"
+    )
+
+    print("-" * 60)
+
+    for proc, tempo in tempos:
+
+        speedup = tempo_base / tempo
+
+        eficiencia = (
+            speedup / proc
+        ) * 100
+
+        print(
+            f"{proc:<10}"
+            f"{tempo:<15.2f}"
+            f"{speedup:<12.2f}"
+            f"{eficiencia:<11.2f}%"
+        )
+
+    melhor = min(
+        tempos,
+        key=lambda x: x[1]
+    )
+
+    print("\n" + "=" * 60)
+    print(
+        f"Melhor configuração: "
+        f"{melhor[0]} processos"
+    )
+    print(
+        f"Tempo: {melhor[1]:.2f}s"
+    )
+    print("=" * 60)
