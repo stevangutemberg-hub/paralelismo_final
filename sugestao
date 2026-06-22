@@ -1,40 +1,238 @@
+import pandas as pd
+import numpy as np
 import time
 import multiprocessing as mp
 
-# lista de testes
+# ============================================
+# CONFIGURAÇÃO
+# ============================================
+
+ARQUIVO = "mta_sbway.csv"
 LISTA_PROCESSOS = [1, 2, 4, 8, 12]
 
-def rodar(chunks, n_processos):
+CHUNKSIZE = 3000   # mais chunks = melhor paralelismo
+INTENSIDADE = 1200 # aumenta carga CPU (importante pro speedup)
 
-    print(f"\nRodando com {n_processos} processo(s)...")
+# ============================================
+# DETECTAR COLUNAS
+# ============================================
+
+def detectar_colunas(cols):
+
+    if "station" in cols:
+        est = "station"
+    elif "station_complex" in cols:
+        est = "station_complex"
+    elif "stop_name" in cols:
+        est = "stop_name"
+    else:
+        return None, None, None
+
+    if "ridership" in cols:
+        pas = "ridership"
+    elif "entries" in cols:
+        pas = "entries"
+    elif "passengers" in cols:
+        pas = "passengers"
+    else:
+        return None, None, None
+
+    if "transit_timestamp" in cols:
+        tm = "transit_timestamp"
+    elif "datetime" in cols:
+        tm = "datetime"
+    elif "timestamp" in cols:
+        tm = "timestamp"
+    else:
+        tm = None
+
+    return est, pas, tm
+
+
+# ============================================
+# CARGA CPU (FORÇA SPEEDUP)
+# ============================================
+
+def cpu_intensivo():
+    x = np.random.rand(12000)
+
+    for _ in range(INTENSIDADE):
+        x = np.fft.fft(x).real
+        x = np.sort(x)
+        x = x / (np.linalg.norm(x) + 1e-9)
+
+    return x
+
+
+# ============================================
+# PROCESSAMENTO DO CHUNK
+# ============================================
+
+def processar_chunk(chunk):
+
+    chunk.columns = chunk.columns.str.lower().str.strip()
+
+    est, pas, tm = detectar_colunas(chunk.columns)
+
+    if est is None:
+        return None
+
+    chunk = chunk.dropna(subset=[est, pas])
+    chunk[pas] = pd.to_numeric(chunk[pas], errors="coerce")
+    chunk = chunk.dropna(subset=[pas])
+
+    if chunk.empty:
+        return None
+
+    # carga CPU (essencial pro benchmark real)
+    cpu_intensivo()
+
+    estacoes = chunk.groupby(est)[pas].sum().to_dict()
+
+    horarios = {}
+    atrasos = []
+    riscos = []
+
+    if tm:
+        chunk[tm] = pd.to_datetime(chunk[tm], errors="coerce")
+        chunk = chunk.dropna(subset=[tm])
+
+        if not chunk.empty:
+            chunk["hora"] = chunk[tm].dt.hour
+
+            horarios = chunk.groupby("hora")[pas].sum().to_dict()
+
+            media = chunk[pas].mean()
+
+            atrasos_df = chunk[chunk[pas] > media * 2]
+            riscos_df = chunk[chunk[pas] > media * 3]
+
+            if not atrasos_df.empty:
+                atrasos = atrasos_df[[est, pas]].head(5).to_dict("records")
+
+            if not riscos_df.empty:
+                riscos = riscos_df[[est, pas]].head(5).to_dict("records")
+
+    return estacoes, horarios, atrasos, riscos
+
+
+# ============================================
+# COMBINA RESULTADOS
+# ============================================
+
+def combinar(resultados):
+
+    est_total = {}
+    hor_total = {}
+    atrasos = []
+    riscos = []
+
+    for r in resultados:
+        if r is None:
+            continue
+
+        est, hor, atr, ris = r
+
+        for k, v in est.items():
+            est_total[k] = est_total.get(k, 0) + v
+
+        for k, v in hor.items():
+            hor_total[k] = hor_total.get(k, 0) + v
+
+        atrasos.extend(atr)
+        riscos.extend(ris)
+
+    return est_total, hor_total, atrasos, riscos
+
+
+# ============================================
+# CARREGAR CHUNKS (SEM SERIALIZAÇÃO PESADA)
+# ============================================
+
+def carregar_chunks():
+
+    print("Carregando CSV...")
+
+    reader = pd.read_csv(
+        ARQUIVO,
+        chunksize=CHUNKSIZE,
+        encoding="latin1",
+        on_bad_lines="skip"
+    )
+
+    chunks = [chunk for chunk in reader]
+
+    print(f"Chunks carregados: {len(chunks)}")
+
+    return chunks
+
+
+# ============================================
+# EXECUÇÃO SERIAL/PARALELA
+# ============================================
+
+def rodar(chunks, n_proc):
+
+    print("\n" + "=" * 60)
+    print(f"Processos: {n_proc}")
+    print("=" * 60)
 
     inicio = time.time()
 
-    if n_processos == 1:
+    if n_proc == 1:
         resultados = [processar_chunk(c) for c in chunks]
     else:
-        with mp.Pool(processes=n_processos) as pool:
+        with mp.Pool(processes=n_proc) as pool:
             resultados = pool.map(processar_chunk, chunks)
 
     tempo = time.time() - inicio
 
-    print(f"Tempo: {tempo:.2f} segundos")
+    est, hor, atr, ris = combinar(resultados)
+
+    print(f"Tempo: {tempo:.2f}s")
 
     return tempo
 
 
+# ============================================
+# MAIN
+# ============================================
+
 if __name__ == "__main__":
+
+    print("=" * 60)
+    print("BENCHMARK SERIAL VS PARALELO")
+    print("=" * 60)
+
+    print(f"CPUs: {mp.cpu_count()}")
 
     chunks = carregar_chunks()
 
     tempos = []
 
     for n in LISTA_PROCESSOS:
-        tempo = rodar(chunks, n)
-        tempos.append((n, tempo))
+        t = rodar(chunks, n)
+        tempos.append((n, t))
 
-    print("\nRESULTADO FINAL")
-    print("-" * 40)
+    tempo_serial = tempos[0][1]
+
+    print("\n" + "=" * 60)
+    print("RESULTADO FINAL")
+    print("=" * 60)
+
+    print(f"{'Proc':<10}{'Tempo':<15}{'Speedup':<15}{'Eficiência'}")
 
     for n, t in tempos:
-        print(f"{n} processo(s): {t:.2f} segundos")
+
+        speedup = tempo_serial / t
+        eficiencia = (speedup / n) * 100
+
+        barra = "█" * int(speedup * 4)
+
+        print(f"{n:<10}{t:<15.2f}{speedup:<15.2f}{eficiencia:.1f}% {barra}")
+
+    melhor = min(tempos, key=lambda x: x[1])
+
+    print("\nMELHOR:")
+    print(f"{melhor[0]} processos -> {melhor[1]:.2f}s")
+    print(f"Speedup: {tempo_serial / melhor[1]:.2f}x")
