@@ -142,19 +142,19 @@ Estações com padrão de ridership estatisticamente anômalo (acima de 2× a m�
 
 ### 📊 Gráfico 1 — Tempo de Execução
 
-![Tempo de Execução](tempo_final.png)
+![Tempo de Execução](tempo.png)
 
 ---
 
 ### 📊 Gráfico 2 — Speedup
 
-![Speedup](speedup_final.png)
+![Speedup](speedup.png)
 
 ---
 
 ### 📊 Gráfico 3 — Eficiência
 
-![Eficiência](eficiencia_final.png)
+![Eficiência](eficiencia.png)
 
 ---
 
