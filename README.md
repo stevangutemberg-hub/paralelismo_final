@@ -26,7 +26,7 @@
 
 ## 📌 1. Descrição do Projeto
 
-Este projeto tem como objetivo aplicar técnicas de **processamento paralelo** para analisar um grande volume de dados de mobilidade urbana do metrô de Nova York (MTA), avaliando simultaneamente:
+Este projeto tem como objetivo utilizar técnicas de processamento paralelo para analisar um grande conjunto de dados de mobilidade urbana fornecidos pela Autoridade Metropolitana de Transporte de Nova York (MTA). A proposta consiste em distribuir o processamento dos dados entre múltiplos processos executados simultaneamente, permitindo reduzir o tempo necessário para a análise de grandes volumes de informação.
 
 - **Análise de dados:** identificação de padrões de uso, horários críticos, estações mais movimentadas, possíveis atrasos e riscos de superlotação.
 - **Análise de desempenho:** mensuração do ganho de velocidade (speedup) e eficiência obtidos com diferentes quantidades de processos paralelos (1, 2, 4, 8 e 12).
