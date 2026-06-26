@@ -184,6 +184,18 @@ Estações com padrão de ridership estatisticamente anômalo (acima de 2× a m�
 - Eficiência cai para **53.8%** — overhead de sincronização dominando
 - Ponto de retorno decrescente: adicionar mais processos já não compensa proporcionalmente
 
+Etapas do Processamento por Chunk
+Cada processo realiza, de forma independente, as seguintes operações sobre sua fatia de dados:
+	1.	Normalização das colunas — padronização de nomes para lowercase
+	2.	Detecção automática de colunas — identifica station_complex, ridership e transit_timestamp
+	3.	Limpeza dos dados — remoção de nulos, conversão de tipos
+	4.	Parse de datas — extração de hora, dia da semana e mês via pd.to_datetime
+	5.	Agrupamento por estação — soma de passageiros por station_complex
+	6.	Agrupamento por horário — soma de passageiros por hora do dia
+	7.	Detecção de atrasos — registros com ridership acima de 2× a média (anomalia)
+	8.	Detecção de superlotação — registros com ridership acima de 3× a média
+	9.	Combinação final — merge de todos os dicionários parciais no processo principal
+
 ---
 
 ## 🏁 6. Conclusão
